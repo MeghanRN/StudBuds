@@ -194,3 +194,5 @@ Method: GET
 Endpoint: /api/test/preferences  
 Description: Retrieves all user preferences.  
 Expected Response: An array of preference objects.  
+
+## Unit Testing (As of Backend Deadline)
