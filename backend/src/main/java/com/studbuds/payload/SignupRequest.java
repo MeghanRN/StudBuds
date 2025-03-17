@@ -1,5 +1,5 @@
 package com.studbuds.payload;
-
+// ⚠️ we could use @Email, @Pattern, @Valid, @Data, @NotBlank, to possibly speed up coding.
 import java.util.HashSet;
 import java.util.Set;
 
