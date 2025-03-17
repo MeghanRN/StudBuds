@@ -20,7 +20,7 @@ public class User {
    private String password;
 
    private String major;
-   private String year;
+   private String year; // ⚠️ year should be an int, not a string
    private LocalDateTime createdAt = LocalDateTime.now();
 
    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)

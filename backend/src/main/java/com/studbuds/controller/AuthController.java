@@ -90,7 +90,7 @@ public class AuthController {
             userRepository.delete(user);
 
             return ResponseEntity.ok("Account deleted successfully.");
-        } catch (Exception e) {
+        } catch (Exception e) { // ⚠️ consider defining this exception more clearly, like UserNotFoundException.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("An unexpected error occurred: " + e.getMessage());
         }

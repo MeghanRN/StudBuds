@@ -15,7 +15,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable()
             .authorizeRequests()
-            .antMatchers("/api/auth/**").permitAll() // Allow authentication endpoints
+            .antMatchers("/api/auth/**").permitAll() // Allow authentication endpoints 
+            // ⚠️ this allows unrestricted access to all endpoints, consider defining specific authorization roles? 
             .anyRequest().permitAll(); // Allow all other endpoints (for demo)
         return http.build();
     }

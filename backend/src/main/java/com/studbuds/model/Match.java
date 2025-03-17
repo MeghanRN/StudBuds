@@ -30,3 +30,5 @@ public class Match {
    public LocalDateTime getMatchDate() { return matchDate; }
    public void setMatchDate(LocalDateTime matchDate) { this.matchDate = matchDate; }
 }
+
+// ⚠️ we should enforce a rule to prevent self matching. 
