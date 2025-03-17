@@ -196,3 +196,5 @@ Description: Retrieves all user preferences.
 Expected Response: An array of preference objects.  
 
 ## Unit Testing (As of Backend Deadline)
+![image (1)](https://github.com/user-attachments/assets/60473bf0-c8d8-4bcb-88f4-b338b3cba677)
+
