@@ -39,3 +39,6 @@ public class Swipe {
         this.toUser = toUser;
     }
 }
+
+// ⚠️ we should add something to rpevent self-swiping! 
+// ⚠️ we should also make sure there are no duplicate swipes.
