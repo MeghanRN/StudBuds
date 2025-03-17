@@ -9,7 +9,7 @@ public class SignupRequest {
    private String email;
    private String password;
    private String major;
-   private String year;
+   private int year;
    
    // Simulating a database of registered emails
    public static Set<String> registeredEmails = new HashSet<>();
@@ -39,6 +39,6 @@ public class SignupRequest {
    
    public String getMajor() { return major; }
    public void setMajor(String major) { this.major = major; }
-   public String getYear() { return year; }
+   public int getYear() { return year; }
    public void setYear(String year) { this.year = year; }
 }
