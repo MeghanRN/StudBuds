@@ -1,11 +1,11 @@
 package com.studbuds.payload;
 
 // LoginRequest with validation
-public class LoginRequest {
+public class LoginRequest { // ⚠️ we should consider using Spring's @Valid for handling validation. 
    private String email;
    private String password;
    
-   // Getters and setters
+   // Getters and setters ⚠️ to reduce manually putting setters and getters we should look into @Data to generate it automatically?
    public String getEmail() { return email; }
    public void setEmail(String email) {
        if (email.endsWith("@cooper.edu")) {
