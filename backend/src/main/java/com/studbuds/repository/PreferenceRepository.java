@@ -18,6 +18,7 @@ public interface PreferenceRepository extends JpaRepository<Preference, Long> {
 
     /**
      * Finds the Preference entity associated with a specific User.
+     * Throws an exception if the user is not found.
      *
      * @param user The user whose preferences are being retrieved.
      * @return An Optional containing the user's preferences if found.
@@ -44,9 +45,6 @@ public interface PreferenceRepository extends JpaRepository<Preference, Long> {
     /**
      * Finds preferences of users with the same major and year,
      * excluding a specific user by their ID.
-     * 
-     * NOTE: The `year` parameter is currently typed as `String`, which may be an error.
-     *       Consider changing it to `int` for consistency.
      *
      * @param major The major field of study to match.
      * @param year The academic year to match.
@@ -58,6 +56,6 @@ public interface PreferenceRepository extends JpaRepository<Preference, Long> {
            "AND p.user.year = :year " +
            "AND p.user.id != :userId")
     List<Preference> findSimilarPreferences(@Param("major") String major, 
-                                            @Param("year") String year,  // should this be int?
+                                            @Param("year") int year,  // Updated to int
                                             @Param("userId") Long userId);
 }
