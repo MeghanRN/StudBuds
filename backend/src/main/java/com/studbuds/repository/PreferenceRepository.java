@@ -9,6 +9,10 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repository interface for managing Preference entities.
+ * Extends JpaRepository to provide CRUD operations.
+ */
 @Repository
 public interface PreferenceRepository extends JpaRepository<Preference, Long> {
     Optional<Preference> findByUser(User user);
