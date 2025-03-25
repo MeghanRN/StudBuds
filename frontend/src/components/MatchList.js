@@ -26,11 +26,18 @@ function MatchList({ userId }) {
     return "🐱"; // default emoji
   };
 
+  // Fetch matches from backend with a check to ensure an array is returned.
   const fetchMatches = () => {
     axios.get(`/api/matches/find/${userId}`)
       .then(response => {
-        setMatches(response.data);
-        setError('');
+        if (Array.isArray(response.data)) {
+          setMatches(response.data);
+          setError('');
+        } else {
+          // If response is not an array, assume it's an error message.
+          setMatches([]);
+          setError(response.data);
+        }
       })
       .catch(err => {
         setError(err.response?.data || 'Error fetching matches');
@@ -42,7 +49,7 @@ function MatchList({ userId }) {
     if (userId) fetchMatches();
   }, [userId]);
 
-  // Get username from the user object.
+  // Get username using the "name" field if available.
   const getUsername = (user) => {
     return user.name && user.name.trim() !== "" ? user.name : user.email.split('@')[0];
   };
@@ -51,13 +58,13 @@ function MatchList({ userId }) {
     if (direction === 'right') {
       axios.post(`/api/matches/swipe?user1Id=${userId}&user2Id=${matchUserId}`)
         .then(() => {
-          setMatches(prev => prev.filter(match => match.user.id !== matchUserId));
+          setMatches(prev => Array.isArray(prev) ? prev.filter(match => match.user.id !== matchUserId) : prev);
         })
         .catch(err => {
           alert(err.response?.data || 'Error processing swipe.');
         });
     } else if (direction === 'left') {
-      setMatches(prev => prev.filter(match => match.user.id !== matchUserId));
+      setMatches(prev => Array.isArray(prev) ? prev.filter(match => match.user.id !== matchUserId) : prev);
     }
   };
 
@@ -65,7 +72,7 @@ function MatchList({ userId }) {
     console.log(`Card for user ${matchUserId} left the screen`);
   };
 
-  // Styling for overall page and container.
+  // Styling
   const pageStyle = {
     background: 'linear-gradient(135deg, #e0f7fa, #ffffff)',
     minHeight: '100vh',
@@ -149,7 +156,7 @@ function MatchList({ userId }) {
         </p>
       )}
       <div style={cardContainerStyle}>
-        {matches && matches.length > 0 ? (
+        {Array.isArray(matches) && matches.length > 0 ? (
           matches.map((match) => (
             <TinderCard
               key={match.user.id}
@@ -170,7 +177,9 @@ function MatchList({ userId }) {
             </TinderCard>
           ))
         ) : (
-          <p style={{ textAlign: 'center' }}>No matches available.</p>
+          <p style={{ textAlign: 'center' }}>
+            {Array.isArray(matches) ? "No matches available." : matches}
+          </p>
         )}
       </div>
     </div>
