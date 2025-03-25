@@ -26,7 +26,7 @@ function MatchList({ userId }) {
     return "🐱"; // default emoji
   };
 
-  // Fetch matches from backend with a check to ensure an array is returned.
+  // Fetch matches from backend and ensure we have an array.
   const fetchMatches = () => {
     axios.get(`/api/matches/find/${userId}`)
       .then(response => {
@@ -34,7 +34,6 @@ function MatchList({ userId }) {
           setMatches(response.data);
           setError('');
         } else {
-          // If response is not an array, assume it's an error message.
           setMatches([]);
           setError(response.data);
         }
@@ -49,11 +48,12 @@ function MatchList({ userId }) {
     if (userId) fetchMatches();
   }, [userId]);
 
-  // Get username using the "name" field if available.
+  // Get username from user.
   const getUsername = (user) => {
     return user.name && user.name.trim() !== "" ? user.name : user.email.split('@')[0];
   };
 
+  // onSwipe callback.
   const onSwipe = (direction, matchUserId) => {
     if (direction === 'right') {
       axios.post(`/api/matches/swipe?user1Id=${userId}&user2Id=${matchUserId}`)
@@ -72,7 +72,7 @@ function MatchList({ userId }) {
     console.log(`Card for user ${matchUserId} left the screen`);
   };
 
-  // Styling
+  // Styling for overall page and container.
   const pageStyle = {
     background: 'linear-gradient(135deg, #e0f7fa, #ffffff)',
     minHeight: '100vh',
@@ -141,7 +141,8 @@ function MatchList({ userId }) {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    marginTop: '1rem'
+    marginTop: '0.5rem',
+    marginRight: '0.5rem'
   };
 
   return (
@@ -172,6 +173,10 @@ function MatchList({ userId }) {
                   <h3 style={usernameStyle}>{getUsername(match.user)}</h3>
                   <p><strong>Common Days:</strong> {match.commonDays.join(', ')}</p>
                   <p><strong>Common Subjects:</strong> {match.commonSubjects.join(', ')}</p>
+                  <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                    <button className="pressable" style={buttonStyle} onClick={() => onSwipe('left', match.user.id)}>Swipe Left</button>
+                    <button className="pressable" style={buttonStyle} onClick={() => onSwipe('right', match.user.id)}>Swipe Right</button>
+                  </div>
                 </div>
               </div>
             </TinderCard>
