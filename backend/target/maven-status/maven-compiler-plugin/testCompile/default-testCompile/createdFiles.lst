@@ -1,9 +1,6 @@
 com/studbuds/model/MatchTest.class
 com/studbuds/config/FirebaseAuthenticationFilterTest.class
-com/studbuds/controller/MatchingControllerTest.class
-com/studbuds/payload/SignupRequestTest.class
-com/studbuds/service/MatchingServiceTest.class
-com/studbuds/model/PreferenceTest.class
-com/studbuds/controller/UserControllerTest.class
 com/studbuds/payload/LoginRequestTest.class
+com/studbuds/controller/MatchingControllerTest.class
 com/studbuds/model/UserTest.class
+com/studbuds/payload/SignupRequestTest.class

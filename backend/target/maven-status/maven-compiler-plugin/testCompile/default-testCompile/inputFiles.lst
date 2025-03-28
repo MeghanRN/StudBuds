@@ -1,9 +1,6 @@
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/payload/SignupRequestTest.java
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/config/FirebaseAuthenticationFilterTest.java
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/model/UserTest.java
-/workspaces/StudBuds/backend/src/test/java/com/studbuds/service/MatchingServiceTest.java
-/workspaces/StudBuds/backend/src/test/java/com/studbuds/controller/UserControllerTest.java
-/workspaces/StudBuds/backend/src/test/java/com/studbuds/model/PreferenceTest.java
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/controller/MatchingControllerTest.java
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/payload/LoginRequestTest.java
 /workspaces/StudBuds/backend/src/test/java/com/studbuds/model/MatchTest.java
