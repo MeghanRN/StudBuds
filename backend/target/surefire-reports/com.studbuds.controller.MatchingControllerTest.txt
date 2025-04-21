@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.studbuds.controller.MatchingControllerTest
 -------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.177 s - in com.studbuds.controller.MatchingControllerTest
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.911 s - in com.studbuds.controller.MatchingControllerTest
