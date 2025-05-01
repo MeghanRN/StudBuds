@@ -1,7 +1,12 @@
+// frontend/src/components/Login.js
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../axiosSetup';
 import { useNavigate, Link } from 'react-router-dom';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 
 export default function Login({ setUserId }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -34,7 +39,6 @@ export default function Login({ setUserId }) {
         formData.password
       );
 
-      // ✅ Block unverified users
       if (!userCredential.user.emailVerified) {
         setMessage('Please verify your email before logging in.');
         await auth.signOut();
@@ -42,32 +46,47 @@ export default function Login({ setUserId }) {
       }
 
       const token = await userCredential.user.getIdToken();
-
       const response = await axios.post(
         '/api/auth/login',
         { firebaseToken: token },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (response.data && response.data.userId) {
+      if (response.data?.userId) {
         setUserId(response.data.userId);
         navigate('/matchlist');
       } else {
-        setMessage("Login failed");
+        setMessage('Login failed');
       }
+
     } catch (error) {
-      if (isMounted.current) {
-        const backendError = error.response?.data;
-        if (typeof backendError === 'string') {
-          setMessage(backendError);
-        } else if (typeof backendError === 'object') {
-          setMessage(backendError.error || backendError.message || 'Login failed');
-        } else {
-          setMessage('Login failed');
-        }
+      if (!isMounted.current) return;
+      if (error.code && error.code.startsWith('auth/')) {
+        setMessage('Username or password not found');
+      } else {
+        const backendMsg = error.response?.data?.message || error.response?.data;
+        setMessage(typeof backendMsg === 'string' ? backendMsg : 'Login failed');
       }
     } finally {
       if (isMounted.current) setIsSubmitting(false);
+    }
+  };
+
+  const handleForgot = async () => {
+    setMessage('');
+    if (!formData.email) {
+      setMessage('Please enter your email to reset password.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, formData.email);
+      setMessage('Password reset email sent. Check your inbox.');
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        setMessage('Email not found.');
+      } else {
+        setMessage(error.message || 'Failed to send reset email.');
+      }
     }
   };
 
@@ -120,6 +139,11 @@ export default function Login({ setUserId }) {
       color: '#2c6e6a',
       textDecoration: 'none',
       fontWeight: 'bold',
+      background: 'none',
+      border: 'none',
+      padding: 0,
+      margin: '0.5rem 0',
+      cursor: 'pointer'
     }
   };
 
@@ -156,6 +180,11 @@ export default function Login({ setUserId }) {
           {isSubmitting ? 'Logging In...' : 'Log In'}
         </button>
       </form>
+
+      {/* Forgot password */}
+      <button onClick={handleForgot} style={styles.link}>
+        Forgot password?
+      </button>
 
       {message && <p style={styles.message}>{message}</p>}
 

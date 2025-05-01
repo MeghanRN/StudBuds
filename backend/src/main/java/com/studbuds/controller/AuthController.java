@@ -6,11 +6,16 @@ import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import com.studbuds.model.User;
 import com.studbuds.model.Preference;
+import com.studbuds.model.Swipe;
+import com.studbuds.model.Match;
 import com.studbuds.payload.LoginRequest;
 import com.studbuds.payload.SignupRequest;
 import com.studbuds.payload.DeleteAccountRequest;
 import com.studbuds.repository.UserRepository;
+import com.studbuds.repository.MatchRepository;
 import com.studbuds.repository.PreferenceRepository;
+import com.studbuds.repository.SwipeRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +29,8 @@ public class AuthController {
 
     @Autowired private UserRepository userRepository;
     @Autowired private PreferenceRepository preferenceRepository;
+    @Autowired private SwipeRepository swipeRepository;
+    @Autowired private MatchRepository matchRepository;
     @Autowired private FirebaseAuth firebaseAuth;
 
     // ─── SIGNUP ───────────────────────────────────────────────────────────────
@@ -156,10 +163,9 @@ public class AuthController {
         String idToken = null;
         if (header != null && header.startsWith("Bearer ")) {
             idToken = header.substring(7);
-        } else if (body != null && body.getFirebaseToken() != null) {
+        } else if (body != null) {
             idToken = body.getFirebaseToken();
         }
-
         if (idToken == null) {
             return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -176,18 +182,44 @@ public class AuthController {
                     .status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "User not found."));
             }
-
             User user = userOpt.get();
 
+            // 1) Delete all swipes sent or received by this user
+            List<Swipe> out = swipeRepository.findByFromUser(user);
+            List<Swipe> in  = swipeRepository.findByToUser(user);
+            List<Swipe> allSwipes = new ArrayList<>();
+            allSwipes.addAll(out);
+            allSwipes.addAll(in);
+            if (!allSwipes.isEmpty()) {
+                swipeRepository.deleteAll(allSwipes);
+            }
+
+            // 2) Delete all matches involving this user
+            List<Match> matches = matchRepository.findByUser1OrUser2(user, user);
+            if (!matches.isEmpty()) {
+                matchRepository.deleteAll(matches);
+            }
+
+            // 3) Delete the user's preferences
+            preferenceRepository.findByUser(user)
+                                .ifPresent(preferenceRepository::delete);
+
+            // 4) Delete from Firebase Auth
             firebaseAuth.deleteUser(uid);
-            preferenceRepository.findByUser(user).ifPresent(preferenceRepository::delete);
+
+            // 5) Finally, delete the local user record
             userRepository.delete(user);
 
-            return ResponseEntity.ok(Map.of("message", "Account deleted successfully."));
+            return ResponseEntity.ok(Map.of("message", "Account and all related data deleted successfully."));
         } catch (FirebaseAuthException e) {
             return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "Firebase error: " + e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", "Server error: " + e.getMessage()));
         }
     }
 }

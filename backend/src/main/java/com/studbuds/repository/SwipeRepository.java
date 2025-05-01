@@ -9,5 +9,9 @@ import java.util.List;
 
 @Repository
 public interface SwipeRepository extends JpaRepository<Swipe, Long> {
+    // swipes *sent* by this user
     List<Swipe> findByFromUser(User fromUser);
+
+    // swipes *received* by this user
+    List<Swipe> findByToUser(User toUser);
 }
