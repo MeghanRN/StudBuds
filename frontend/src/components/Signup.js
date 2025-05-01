@@ -1,7 +1,9 @@
-// src/components/Signup.js
+// frontend/src/components/Signup.js
 import React, { useState } from 'react';
 import axios from '../axiosSetup';
 import { useNavigate, Link } from 'react-router-dom';
+import { auth } from '../firebase-config';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 
 const allowedMajors = [
   "Electrical Engineering",
@@ -10,142 +12,143 @@ const allowedMajors = [
   "Civil Engineering",
   "General Engineering",
   "Computer Science"
-]
-
-const styles = {
-  container: {
-    maxWidth: '400px',
-    margin: '3rem auto',
-    padding: '2rem',
-    borderRadius: '12px',
-    boxShadow: '0 6px 12px rgba(0,0,0,0.1)',
-    backgroundColor: '#ffffff',
-  },
-  heading: {
-    textAlign: 'center',
-    marginBottom: '1.5rem',
-    color: '#2c6e6a'
-  },
-  input: {
-    width: '100%',
-    padding: '12px',
-    margin: '0.5rem 0',
-    borderRadius: '20px',
-    border: '1px solid #ccc',
-    boxSizing: 'border-box',
-    outline: 'none',
-    fontSize: '1rem'
-  },
-  select: {
-    width: '100%',
-    padding: '12px',
-    margin: '0.5rem 0',
-    borderRadius: '20px',
-    border: '1px solid #ccc',
-    boxSizing: 'border-box',
-    outline: 'none',
-    fontSize: '1rem'
-  },
-  checkboxContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    margin: '1rem 0'
-  },
-  checkbox: {
-    marginRight: '0.5rem'
-  },
-  button: {
-    width: '100%',
-    padding: '12px',
-    marginTop: '1rem',
-    borderRadius: '20px',
-    border: 'none',
-    backgroundColor: '#5ccdc1',
-    color: '#fff',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease'
-  },
-  buttonDisabled: {
-    backgroundColor: '#9de0da',
-    cursor: 'not-allowed'
-  },
-  message: {
-    color: 'blue',
-    textAlign: 'center',
-    marginTop: '1rem'
-  },
-  link: {
-    color: '#2c6e6a',
-    textDecoration: 'none',
-    fontWeight: 'bold'
-  }
-}
+];
 
 export default function Signup() {
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', major: '', year: ''
-  })
-  const [agreeToShare, setAgreeToShare] = useState(false)
-  const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const navigate = useNavigate()
+    name: '',
+    email: '',
+    password: '',
+    major: '',
+    year: ''
+  });
+  const [agreeToShare, setAgreeToShare] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = e => {
-    let val = e.target.value
-    if (e.target.name === 'email') val = val.toLowerCase()
-    setFormData(fd => ({ ...fd, [e.target.name]: val }))
-  }
+    let val = e.target.value;
+    if (e.target.name === 'email') val = val.toLowerCase();
+    setFormData(fd => ({ ...fd, [e.target.name]: val }));
+  };
 
   const validateForm = () => {
     if (!formData.email.endsWith('@cooper.edu')) {
-      setMessage("Please use a @cooper.edu email.")
-      return false
+      setMessage("Please use a @cooper.edu email.");
+      return false;
     }
     if (formData.password.length < 9) {
-      setMessage("Password must be at least 9 characters.")
-      return false
+      setMessage("Password must be at least 9 characters.");
+      return false;
     }
-    const y = parseInt(formData.year, 10)
+    const y = parseInt(formData.year, 10);
     if (isNaN(y) || y < 2020 || y > 2050) {
-      setMessage("Year must be between 2020 and 2050.")
-      return false
+      setMessage("Year must be between 2020 and 2050.");
+      return false;
     }
     if (!allowedMajors.includes(formData.major)) {
-      setMessage("Please select a valid major.")
-      return false
+      setMessage("Please select a valid major.");
+      return false;
     }
     if (!agreeToShare) {
-      setMessage("You must agree to share your email with future matches.")
-      return false
+      setMessage("You must agree to share your email with future matches.");
+      return false;
     }
-    return true
-  }
+    return true;
+  };
 
   const handleSubmit = async e => {
-    e.preventDefault()
-    setMessage('')
-    if (!validateForm()) return
+    e.preventDefault();
+    setMessage('');
+    if (!validateForm()) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      await axios.post('/api/auth/signup', {
-        name:      formData.name.trim(),
-        email:     formData.email.trim(),
-        password:  formData.password,
-        major:     formData.major,
-        year:      formData.year,
-        shareEmails: agreeToShare      // <-- new field
-      })
-      navigate('/login', { replace: true })
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email.trim(),
+        formData.password
+      );
+      await sendEmailVerification(userCredential.user);
+      // After sending the verification email, redirect to login
+      navigate('/login', { replace: true });
     } catch (err) {
-      const status = err.response?.status
-      const text   = err.response?.data || err.message
-      setMessage(text)
+      setMessage(err.message);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const styles = {
+    container: {
+      maxWidth: '400px',
+      margin: '3rem auto',
+      padding: '2rem',
+      borderRadius: '12px',
+      boxShadow: '0 6px 12px rgba(0,0,0,0.1)',
+      backgroundColor: '#ffffff',
+    },
+    heading: {
+      textAlign: 'center',
+      marginBottom: '1.5rem',
+      color: '#2c6e6a'
+    },
+    input: {
+      width: '100%',
+      padding: '12px',
+      margin: '0.5rem 0',
+      borderRadius: '20px',
+      border: '1px solid #ccc',
+      boxSizing: 'border-box',
+      outline: 'none',
+      fontSize: '1rem'
+    },
+    select: {
+      width: '100%',
+      padding: '12px',
+      margin: '0.5rem 0',
+      borderRadius: '20px',
+      border: '1px solid #ccc',
+      boxSizing: 'border-box',
+      outline: 'none',
+      fontSize: '1rem'
+    },
+    checkboxContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      margin: '1rem 0'
+    },
+    checkbox: {
+      marginRight: '0.5rem'
+    },
+    button: {
+      width: '100%',
+      padding: '12px',
+      marginTop: '1rem',
+      borderRadius: '20px',
+      border: 'none',
+      backgroundColor: '#5ccdc1',
+      color: '#fff',
+      fontSize: '1rem',
+      cursor: 'pointer',
+      transition: 'background-color 0.3s ease'
+    },
+    buttonDisabled: {
+      backgroundColor: '#9de0da',
+      cursor: 'not-allowed'
+    },
+    message: {
+      color: 'blue',
+      textAlign: 'center',
+      marginTop: '1rem'
+    },
+    link: {
+      color: '#2c6e6a',
+      textDecoration: 'none',
+      fontWeight: 'bold'
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -199,7 +202,6 @@ export default function Signup() {
           required
         />
 
-        {/* New agreement checkbox */}
         <div style={styles.checkboxContainer}>
           <input
             type="checkbox"
@@ -217,7 +219,7 @@ export default function Signup() {
           type="submit"
           style={{
             ...styles.button,
-            ...((isSubmitting || !agreeToShare) ? styles.buttonDisabled : {})
+            ...(isSubmitting || !agreeToShare ? styles.buttonDisabled : {})
           }}
           disabled={isSubmitting || !agreeToShare}
         >
@@ -234,5 +236,5 @@ export default function Signup() {
         <Link to="/login" style={styles.link}>Sign in here</Link>
       </p>
     </div>
-  )
+  );
 }

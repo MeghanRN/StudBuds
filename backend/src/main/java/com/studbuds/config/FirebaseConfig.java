@@ -8,9 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.PostConstruct;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 @Configuration
 public class FirebaseConfig {
@@ -18,19 +16,21 @@ public class FirebaseConfig {
     @PostConstruct
     public void initialize() {
         try {
-            String firebaseJson = System.getenv("FIREBASE_CONFIG_JSON");
-            if (firebaseJson == null || firebaseJson.isEmpty()) {
-                throw new RuntimeException("FIREBASE_CONFIG_JSON not set in Azure App Settings.");
+            InputStream serviceAccount = getClass()
+                .getClassLoader()
+                .getResourceAsStream("firebase-authentication-config.json");
+
+            if (serviceAccount == null) {
+                throw new RuntimeException("firebase-authentication-config.json not found in resources folder");
             }
 
-            InputStream serviceAccount = new ByteArrayInputStream(firebaseJson.getBytes(StandardCharsets.UTF_8));
-
             FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
+                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                .build();
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
+                System.out.println("✅ Firebase initialized from resources");
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize Firebase", e);
