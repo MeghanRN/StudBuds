@@ -1,240 +1,86 @@
-// frontend/src/components/Signup.js
 import React, { useState } from 'react';
-import axios from '../axiosSetup';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth } from '../firebase-config';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+} from 'firebase/auth';
+import axios from '../axiosSetup';
 
-const allowedMajors = [
-  "Electrical Engineering",
-  "Mechanical Engineering",
-  "Chemical Engineering",
-  "Civil Engineering",
-  "General Engineering",
-  "Computer Science"
+const majors = [
+  'Electrical Engineering','Mechanical Engineering','Chemical Engineering',
+  'Civil Engineering','General Engineering','Computer Science'
 ];
 
 export default function Signup() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    major: '',
-    year: ''
-  });
-  const [agreeToShare, setAgreeToShare] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const [f, setF] = useState({name:'', email:'', password:'', major:'', year:''});
+  const [agree, setAgree] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const nav = useNavigate();
 
-  const handleChange = e => {
-    let val = e.target.value;
-    if (e.target.name === 'email') val = val.toLowerCase();
-    setFormData(fd => ({ ...fd, [e.target.name]: val }));
+  const onChange = e =>
+    setF({...f, [e.target.name]:
+      e.target.name==='email' ? e.target.value.toLowerCase() : e.target.value});
+
+  const valid = () => {
+    if (!f.email.endsWith('@cooper.edu'))      return 'Use a @cooper.edu email';
+    if (f.password.length < 9)                 return 'Password ≥9 chars';
+    const y = +f.year; if (y<2020||y>2050)     return 'Year 2020–2050';
+    if (!majors.includes(f.major))             return 'Select a valid major';
+    if (!agree)                                return 'You must agree to share';
+    return '';
   };
 
-  const validateForm = () => {
-    if (!formData.email.endsWith('@cooper.edu')) {
-      setMessage("Please use a @cooper.edu email.");
-      return false;
-    }
-    if (formData.password.length < 9) {
-      setMessage("Password must be at least 9 characters.");
-      return false;
-    }
-    const y = parseInt(formData.year, 10);
-    if (isNaN(y) || y < 2020 || y > 2050) {
-      setMessage("Year must be between 2020 and 2050.");
-      return false;
-    }
-    if (!allowedMajors.includes(formData.major)) {
-      setMessage("Please select a valid major.");
-      return false;
-    }
-    if (!agreeToShare) {
-      setMessage("You must agree to share your email with future matches.");
-      return false;
-    }
-    return true;
-  };
+  const onSubmit = async e => {
+    e.preventDefault(); setMsg('');
+    const err = valid(); if (err) { setMsg(err); return; }
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setMessage('');
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
+    setBusy(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email.trim(),
-        formData.password
-      );
-      await sendEmailVerification(userCredential.user);
-      // After sending the verification email, redirect to login
-      navigate('/login', { replace: true });
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+      /* 1) Firebase account */
+      const cred = await createUserWithEmailAndPassword(auth, f.email, f.password);
+      await sendEmailVerification(cred.user);
+
+      /* 2) Local account */
+      const token = await cred.user.getIdToken();
+      await axios.post('/api/auth/signup', {
+          email: f.email, password: f.password, name: f.name,
+          major: f.major, year: f.year
+        },
+        { headers:{ Authorization:`Bearer ${token}` } });
+
+      nav('/login');
+    } catch (e) {
+      setMsg(e.message);
+    } finally { setBusy(false); }
   };
 
-  const styles = {
-    container: {
-      maxWidth: '400px',
-      margin: '3rem auto',
-      padding: '2rem',
-      borderRadius: '12px',
-      boxShadow: '0 6px 12px rgba(0,0,0,0.1)',
-      backgroundColor: '#ffffff',
-    },
-    heading: {
-      textAlign: 'center',
-      marginBottom: '1.5rem',
-      color: '#2c6e6a'
-    },
-    input: {
-      width: '100%',
-      padding: '12px',
-      margin: '0.5rem 0',
-      borderRadius: '20px',
-      border: '1px solid #ccc',
-      boxSizing: 'border-box',
-      outline: 'none',
-      fontSize: '1rem'
-    },
-    select: {
-      width: '100%',
-      padding: '12px',
-      margin: '0.5rem 0',
-      borderRadius: '20px',
-      border: '1px solid #ccc',
-      boxSizing: 'border-box',
-      outline: 'none',
-      fontSize: '1rem'
-    },
-    checkboxContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      margin: '1rem 0'
-    },
-    checkbox: {
-      marginRight: '0.5rem'
-    },
-    button: {
-      width: '100%',
-      padding: '12px',
-      marginTop: '1rem',
-      borderRadius: '20px',
-      border: 'none',
-      backgroundColor: '#5ccdc1',
-      color: '#fff',
-      fontSize: '1rem',
-      cursor: 'pointer',
-      transition: 'background-color 0.3s ease'
-    },
-    buttonDisabled: {
-      backgroundColor: '#9de0da',
-      cursor: 'not-allowed'
-    },
-    message: {
-      color: 'blue',
-      textAlign: 'center',
-      marginTop: '1rem'
-    },
-    link: {
-      color: '#2c6e6a',
-      textDecoration: 'none',
-      fontWeight: 'bold'
-    }
-  };
-
+  /* ---------- JSX ---------- */
+  const input = p => <input {...p} required style={{display:'block',margin:'6px 0',width:'100%'}}/>;
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Sign Up for StudBuds</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          style={styles.input}
-          name="name"
-          placeholder="Full Name"
-          value={formData.name}
-          onChange={handleChange}
-          required
-        />
-        <input
-          style={styles.input}
-          name="email"
-          type="email"
-          placeholder="Email (@cooper.edu)"
-          value={formData.email}
-          onChange={handleChange}
-          required
-        />
-        <input
-          style={styles.input}
-          name="password"
-          type="password"
-          placeholder="Password (min 9 chars)"
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
-        <select
-          style={styles.select}
-          name="major"
-          value={formData.major}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Select Major</option>
-          {allowedMajors.map(m => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-        <input
-          style={styles.input}
-          name="year"
-          type="number"
-          placeholder="Year (2020–2050)"
-          value={formData.year}
-          onChange={handleChange}
-          required
-        />
+  <div style={{maxWidth:400,margin:'3rem auto',padding:20,boxShadow:'0 4px 8px #ccc'}}>
+    <h2>Sign Up</h2>
+    <form onSubmit={onSubmit}>
+      {input({name:'name',placeholder:'Full name',value:f.name,onChange:onChange})}
+      {input({type:'email',name:'email',placeholder:'Email',value:f.email,onChange:onChange})}
+      {input({type:'password',name:'password',placeholder:'Password',value:f.password,onChange:onChange})}
+      <select name="major" value={f.major} onChange={onChange} required
+              style={{display:'block',margin:'6px 0',width:'100%'}}>
+        <option value="">Select major</option>{majors.map(m=><option key={m}>{m}</option>)}
+      </select>
+      {input({type:'number',name:'year',placeholder:'Year',value:f.year,onChange:onChange})}
 
-        <div style={styles.checkboxContainer}>
-          <input
-            type="checkbox"
-            id="agreeToShare"
-            checked={agreeToShare}
-            onChange={e => setAgreeToShare(e.target.checked)}
-            style={styles.checkbox}
-          />
-          <label htmlFor="agreeToShare">
-            I agree that StudBuds may share my email with all future matches
-          </label>
-        </div>
+      <label style={{display:'block',margin:'8px 0'}}>
+        <input type="checkbox" checked={agree} onChange={()=>setAgree(!agree)}/>
+        &nbsp;I agree StudBuds may share my email with matches
+      </label>
 
-        <button
-          type="submit"
-          style={{
-            ...styles.button,
-            ...(isSubmitting || !agreeToShare ? styles.buttonDisabled : {})
-          }}
-          disabled={isSubmitting || !agreeToShare}
-        >
-          {isSubmitting ? 'Signing Up…' : 'Sign Up'}
-        </button>
-      </form>
-
-      {message && (
-        <div style={styles.message}>{message}</div>
-      )}
-
-      <p style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-        Already have an account?{' '}
-        <Link to="/login" style={styles.link}>Sign in here</Link>
-      </p>
-    </div>
-  );
+      <button disabled={busy||!agree} style={{width:'100%'}}>
+        {busy?'Signing up…':'Sign Up'}
+      </button>
+    </form>
+    {msg && <p style={{color:'red'}}>{msg}</p>}
+    <p>Already have an account? <Link to="/login">Log in</Link></p>
+  </div>);
 }
