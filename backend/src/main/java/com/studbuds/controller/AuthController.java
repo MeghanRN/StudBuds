@@ -3,70 +3,70 @@ package com.studbuds.controller;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
-import com.studbuds.model.*;
-import com.studbuds.payload.*;
-import com.studbuds.repository.*;
-
+import com.studbuds.model.Preference;
+import com.studbuds.model.User;
+import com.studbuds.payload.SignupRequest;
+import com.studbuds.repository.PreferenceRepository;
+import com.studbuds.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired private FirebaseAuth         firebaseAuth;
-    @Autowired private UserRepository       userRepository;
+    @Autowired private FirebaseAuth firebaseAuth;
+    @Autowired private UserRepository userRepository;
     @Autowired private PreferenceRepository preferenceRepository;
-    @Autowired private SwipeRepository      swipeRepository;
-    @Autowired private MatchRepository      matchRepository;
 
-    /*────────────────────────  SIGN‑UP  ────────────────────────*/
+    // ─── SIGNUP ───────────────────────────────────────────────────────────────
+    /**
+     * Client must:
+     *   1) createUserWithEmailAndPassword(...)
+     *   2) getIdToken() → Authorization: Bearer <token>
+     *   3) POST /api/auth/signup { name, major, year }
+     */
     @PostMapping("/signup")
     public ResponseEntity<?> signUp(
-            @RequestBody SignupRequest req,
-            @RequestHeader("Authorization") String header) {
+        @RequestHeader("Authorization") String authHeader,
+        @RequestBody SignupRequest req
+    ) {
+        if (authHeader == null || !authHeader.startsWith("Bearer "))
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                 .body("Missing or malformed Authorization header.");
 
-        String idToken = header.replace("Bearer ", "").trim();
-        if (idToken.isEmpty()) {
-            return ResponseEntity.badRequest().body("Missing Firebase token");
-        }
-
+        String idToken = authHeader.substring(7);
         FirebaseToken decoded;
         try {
-            decoded = firebaseAuth.verifyIdToken(idToken, /*checkRevoked=*/true);
+            decoded = firebaseAuth.verifyIdToken(idToken);
         } catch (FirebaseAuthException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                                  .body("Invalid Firebase token.");
         }
 
-        /* 1) Basic validations on input */
-        String email = req.getEmail().trim().toLowerCase();
-        if (!email.endsWith("@cooper.edu"))
-            return ResponseEntity.badRequest().body("Email must be @cooper.edu");
-        if (!decoded.getEmail().equalsIgnoreCase(email))
-            return ResponseEntity.badRequest().body("Token/email mismatch.");
-        if (req.getPassword() == null || req.getPassword().length() < 9)
-            return ResponseEntity.badRequest().body("Password must be ≥9 chars");
+        String uid   = decoded.getUid();
+        String email = decoded.getEmail();
 
-        /* 2) Duplicate‑check locally */
-        if (userRepository.findByFirebaseUid(decoded.getUid()).isPresent())
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                                 .body("Local account already exists.");
+        // avoid duplicate local record
+        if (userRepository.findByFirebaseUid(uid).isPresent()) {
+            return ResponseEntity.ok(Map.of("message","Local account already exists."));
+        }
 
-        /* 3) Persist local user with REAL fields */
+        // create local user
         User u = new User();
-        u.setFirebaseUid(decoded.getUid());
+        u.setFirebaseUid(uid);
         u.setEmail(email);
-        u.setName(req.getName().trim());
+        u.setName(req.getName());
         u.setMajor(req.getMajor());
         u.setYear(req.getYear());
         u.setCreatedAt(LocalDateTime.now());
         userRepository.save(u);
 
+        // blank preference
         Preference p = new Preference();
         p.setUser(u);
         p.setAvailableDays("");
@@ -78,64 +78,41 @@ public class AuthController {
         userRepository.save(u);
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                             .body(Map.of("message",
-                                 "Local account created. Please verify your email."));
+                             .body(Map.of("message","Local account created. Please verify your email."));
     }
 
-    /*────────────────────────  LOGIN  ─────────────────────────*/
+    // ─── LOGIN ────────────────────────────────────────────────────────────────
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest body) {
+    public ResponseEntity<?> login(
+        @RequestHeader("Authorization") String authHeader
+    ) {
+        if (authHeader == null || !authHeader.startsWith("Bearer "))
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                 .body("Missing or malformed Authorization header.");
 
-        String idToken = body.getFirebaseToken();
-        if (idToken == null || idToken.isBlank())
-            return ResponseEntity.badRequest().body("Missing Firebase token");
-
+        String idToken = authHeader.substring(7);
         FirebaseToken decoded;
         try {
-            decoded = firebaseAuth.verifyIdToken(idToken, /*checkRevoked=*/true);
+            decoded = firebaseAuth.verifyIdToken(idToken);
         } catch (FirebaseAuthException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                 .body("Invalid or expired token.");
+                                 .body("Invalid Firebase token.");
         }
 
-        if (!decoded.isEmailVerified())
+        if (!decoded.isEmailVerified()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                                 .body("Please verify your email first.");
-
-        return userRepository.findByFirebaseUid(decoded.getUid())
-            .<ResponseEntity<?>>map(u -> ResponseEntity.ok(
-                    Map.of("message", "Login successful.", "userId", u.getId())))
-            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                                           .body("No local account. Please sign up."));
-    }
-
-    /*────────────────────────  DELETE ACCOUNT  ───────────────*/
-    @PostMapping("/delete")
-    public ResponseEntity<?> deleteAccount(@RequestBody DeleteAccountRequest body) {
-
-        String idToken = body.getFirebaseToken();
-        if (idToken == null || idToken.isBlank())
-            return ResponseEntity.badRequest().body("Missing Firebase token");
-
-        try {
-            FirebaseToken decoded = firebaseAuth.verifyIdToken(idToken, true);
-            String uid = decoded.getUid();
-
-            User user = userRepository.findByFirebaseUid(uid)
-                          .orElseThrow(() -> new RuntimeException("User not found"));
-
-            swipeRepository.deleteAll(swipeRepository.findByFromUser(user));
-            swipeRepository.deleteAll(swipeRepository.findByToUser(user));
-            matchRepository.deleteAll(matchRepository.findByUser1OrUser2(user, user));
-            preferenceRepository.findByUser(user).ifPresent(preferenceRepository::delete);
-
-            firebaseAuth.deleteUser(uid);
-            userRepository.delete(user);
-
-            return ResponseEntity.ok(Map.of("message", "Account fully deleted."));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                 .body("Delete failed: " + e.getMessage());
+                                 .body("Please verify your email before logging in.");
         }
+
+        String uid = decoded.getUid();
+        return userRepository.findByFirebaseUid(uid)
+            .map(u -> ResponseEntity.ok(Map.of(
+                "message","Login successful.",
+                "userId", u.getId()
+            )))
+            .orElseGet(() ->
+                ResponseEntity.status(HttpStatus.NOT_FOUND)
+                              .body(Map.of("message", "No local account found. Please sign up first."))
+            );
     }
 }
