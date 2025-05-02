@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseToken;
 import com.studbuds.model.Preference;
 import com.studbuds.model.User;
 import com.studbuds.payload.SignupRequest;
+import com.studbuds.payload.DeleteAccountRequest;
 import com.studbuds.repository.PreferenceRepository;
 import com.studbuds.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -114,5 +116,46 @@ public class AuthController {
                 ResponseEntity.status(HttpStatus.NOT_FOUND)
                               .body(Map.of("message", "No local account found. Please sign up first."))
             );
+    }
+    // ─── DELETE ACCOUNT ──────────────────────────────────────────────────────
+    @PostMapping("/delete")
+    public ResponseEntity<?> deleteAccount(
+        @RequestBody(required=false) DeleteAccountRequest body,
+        @RequestHeader(value="Authorization", required=false) String header
+    ) {
+        String idToken = null;
+        if (header != null && header.startsWith("Bearer ")) {
+            idToken = header.substring(7);
+        } else if (body != null && body.getFirebaseToken() != null) {
+            idToken = body.getFirebaseToken();
+        }
+        if (idToken == null) {
+            return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message","Missing Firebase token"));
+        }
+
+        try {
+            FirebaseToken decoded = firebaseAuth.verifyIdToken(idToken);
+            String uid = decoded.getUid();
+
+            Optional<User> userOpt = userRepository.findByFirebaseUid(uid);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message","User not found."));
+            }
+            User user = userOpt.get();
+
+            firebaseAuth.deleteUser(uid);
+            preferenceRepository.findByUser(user).ifPresent(preferenceRepository::delete);
+            userRepository.delete(user);
+
+            return ResponseEntity.ok(Map.of("message","Account deleted successfully."));
+        } catch (FirebaseAuthException e) {
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message","Firebase error: " + e.getMessage()));
+        }
     }
 }
