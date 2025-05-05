@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -34,6 +35,8 @@ class AuthControllerTest {
     @Mock private UserRepository userRepository;
     @Mock private PreferenceRepository preferenceRepository;
     @Mock private FirebaseAuth firebaseAuth;
+    @Mock private SwipeRepository swipeRepository;
+    @Mock private MatchRepository matchRepository;
     @InjectMocks private AuthController authController;
 
     private SignupRequest signupReq;
@@ -76,6 +79,7 @@ void signUp_success() throws Exception {
 
     // No UID conflict
     when(userRepository.findByFirebaseUid("firebase123")).thenReturn(Optional.empty());
+    
 
     // New user creation (with ID set manually in mock)
     User newUser = new User();
